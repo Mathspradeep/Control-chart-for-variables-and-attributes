@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Control Chart Generator</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+<script>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; background: #f4f4f4; }
+    .container { max-width: 1000px; margin: auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+    h1 { text-align: center; }
+    .btn { background: #007bff; color: white; padding: 10px 16px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; }
+    .btn:hover { background: #0056b3; }
+    #suggestion { margin-top: 30px; padding: 15px; background: #f9f9f9; border-left: 5px solid #007bff; }
+    .header-description {
+      margin-bottom: 30px;
+      font-size: 16px;
+      text-align: center;
+      line-height: 1.6;
+      background-color: #e6f0ff;
+      padding: 15px;
+      border-radius: 6px;
+    }
+    .template-section {
+      background: #f0f8ff;
+      border: 1px solid #007bff;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 20px;
+    }
+    .template-section h3 {
+      margin-top: 0;
+    }
+    .template-section table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    .template-section th, .template-section td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div style="text-align: center; margin-bottom: 20px;">
+    <img src="e32aa821-341e-4599-b734-09f0833507c6.png" alt="KGiSL Logo" style="max-height: 90px; width: auto;" />
+    <div style="margin-top: 10px; font-size: 16px; line-height: 1.5;">
+      <strong>KGiSL Institute of Technology</strong><br>
+      (An Autonomous Institution)<br>
+      Affiliated to Anna University, Approved by AICTE, Recognized by UGC,<br>
+      Accredited by NAAC & NBA (B.E-CSE, B.E-ECE, B.Tech-IT)<br>
+      365, KGiSL Campus, Thudiyalur Road, Saravanampatti, Coimbatore – 641035
+    </div>
+  </div>
+
+  <div class="container">
+    <h1>Control Chart Generator</h1>
+    <div class="header-description">
+      <strong>Supported Charts:</strong><br>
+      • Control Charts for Variables: <em>IMR, X̄ and R charts</em><br>
+      • Control Charts for Attributes: <em>p, c, and np charts</em>
+    </div>
+
+    <select id="chartType">
+      <option value="imr">IMR Chart (Variables)</option>
+      <option value="xbar-r">X̄-R Chart (Variables)</option>
+      <option value="p">p Chart (Attributes)</option>
+      <option value="c">c Chart (Attributes)</option>
+      <option value="np">np Chart (Attributes)</option>
+    </select>
+    <button type="button" onclick="downloadTemplate()" class="btn">Download Excel Template</button>
+    <button type="button" onclick="generateChart()" class="btn" style="margin-left: 10px;">Generate Chart</button>
+    <input type="file" id="fileInput" accept=".xls,.xlsx,.csv" style="margin-top: 15px;" />
+
+    <canvas id="chartCanvas"></canvas>
+    <div id="suggestion"></div>
+
+    <div class="template-section">
+      <h3>Excel Template Format</h3>
+      <h4>IMR Chart</h4>
+      <table><tr><th>Value</th></tr><tr><td>20.5</td></tr><tr><td>21.0</td></tr><tr><td>19.8</td></tr><tr><td>20.2</td></tr></table>
+      <h4>X̄-R Chart</h4>
+      <table><tr><th>Subgroup</th><th>Value</th></tr><tr><td>A</td><td>20.5</td></tr><tr><td>A</td><td>21.0</td></tr><tr><td>B</td><td>19.8</td></tr><tr><td>B</td><td>20.2</td></tr></table>
+      <h4>p Chart / np Chart</h4>
+      <table><tr><th>SampleSize</th><th>Defective</th></tr><tr><td>50</td><td>4</td></tr><tr><td>50</td><td>2</td></tr><tr><td>50</td><td>6</td></tr></table>
+      <h4>c Chart</h4>
+      <table><tr><th>Defects</th></tr><tr><td>4</td></tr><tr><td>2</td></tr><tr><td>6</td></tr></table>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      window.downloadTemplate = function () {
+        const chartType = document.getElementById("chartType").value;
+        let wsData = [];
+        if (chartType === 'imr') {
+          wsData = [["Value"], [20.5], [21.0], [19.8], [20.2]];
+        } else if (chartType === 'xbar-r') {
+          wsData = [["Subgroup", "Value"], ["A", 20.5], ["A", 21.0], ["B", 19.8], ["B", 20.2]];
+        } else if (chartType === 'p' || chartType === 'np') {
+          wsData = [["SampleSize", "Defective"], [50, 4], [50, 2], [50, 6]];
+        } else if (chartType === 'c') {
+          wsData = [["Defects"], [4], [2], [6]];
+        }
+
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "Template");
+        const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+        const blob = new Blob([wbout], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement("a");
+        document.body.appendChild(a);
+        a.href = url;
+        a.download = "chart_template.xlsx";
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      window.generateChart = function () {
+        const fileInput = document.getElementById("fileInput");
+        const chartType = document.getElementById("chartType").value;
+
+        if (!fileInput.files.length) {
+          alert("Please upload an Excel file first.");
+          return;
+        }
+
+        const file = fileInput.files[0];
+        const reader = new FileReader();
+
+        reader.onload = function (e) {
+          const data = new Uint8Array(e.target.result);
+          const workbook = XLSX.read(data, { type: "array" });
+          const sheet = workbook.Sheets[workbook.SheetNames[0]];
+          const jsonData = XLSX.utils.sheet_to_json(sheet);
+
+          alert("File successfully uploaded. Ready to process chart.");
+          drawControlChart(chartType, jsonData);
+        };
+
+        reader.readAsArrayBuffer(file);
+      };
+
+      function drawControlChart(chartType, jsonData) {
+        const ctx = document.getElementById('chartCanvas').getContext('2d');
+        if (window.myChart) window.myChart.destroy();
+
+        if (chartType === 'imr') {
+          const values = jsonData.map(row => row['Value']);
+          const labels = values.map((_, i) => `Obs ${i + 1}`);
+          const mean = values.reduce((a, b) => a + b, 0) / values.length;
+          const movingRanges = values.slice(1).map((v, i) => Math.abs(v - values[i]));
+          const mrBar = movingRanges.reduce((a, b) => a + b, 0) / movingRanges.length;
+          const ucl = mean + 2.66 * mrBar;
+          const lcl = mean - 2.66 * mrBar;
+
+          window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Values', data: values, borderColor: 'blue', fill: false },
+                { label: 'Mean', data: values.map(() => mean), borderColor: 'green', borderDash: [5,5], fill: false },
+                { label: 'UCL', data: values.map(() => ucl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'LCL', data: values.map(() => lcl), borderColor: 'red', borderDash: [5,5], fill: false }
+              ]
+            },
+            options: { plugins: { title: { display: true, text: 'IMR Chart' } } }
+          });
+        } else if (chartType === 'xbar-r') {
+          const subgroups = {};
+          jsonData.forEach(row => {
+            const group = row['Subgroup'];
+            const value = row['Value'];
+            if (!subgroups[group]) subgroups[group] = [];
+            subgroups[group].push(value);
+          });
+          const labels = Object.keys(subgroups);
+          const xbar = labels.map(g => subgroups[g].reduce((a,b)=>a+b,0)/subgroups[g].length);
+          const ranges = labels.map(g => Math.max(...subgroups[g]) - Math.min(...subgroups[g]));
+          const avgXbar = xbar.reduce((a,b)=>a+b,0)/xbar.length;
+          const avgR = ranges.reduce((a,b)=>a+b,0)/ranges.length;
+          const n = subgroups[labels[0]].length;
+          const A2 = {2:1.88, 3:1.023, 4:0.729, 5:0.577, 6:0.483}[n] || 0.577;
+          const ucl = avgXbar + A2 * avgR;
+          const lcl = avgXbar - A2 * avgR;
+
+          window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Xbar', data: xbar, borderColor: 'blue', fill: false },
+                { label: 'Mean', data: xbar.map(() => avgXbar), borderColor: 'green', borderDash: [5,5], fill: false },
+                { label: 'UCL', data: xbar.map(() => ucl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'LCL', data: xbar.map(() => lcl), borderColor: 'red', borderDash: [5,5], fill: false }
+              ]
+            },
+            options: { plugins: { title: { display: true, text: 'X̄-R Chart' } } }
+          });
+        } else if (chartType === 'p') {
+          const defectives = jsonData.map(r => r['Defective']);
+          const sampleSizes = jsonData.map(r => r['SampleSize']);
+          const p = defectives.map((d,i) => d/sampleSizes[i]);
+          const totalDefectives = defectives.reduce((a,b)=>a+b,0);
+          const totalSamples = sampleSizes.reduce((a,b)=>a+b,0);
+          const pBar = totalDefectives / totalSamples;
+          const ucl = sampleSizes.map(n => pBar + 3 * Math.sqrt((pBar*(1-pBar))/n));
+          const lcl = sampleSizes.map(n => Math.max(0, pBar - 3 * Math.sqrt((pBar*(1-pBar))/n)));
+          const labels = p.map((_,i)=>`Sample ${i+1}`);
+
+          window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'p value', data: p, borderColor: 'blue', fill: false },
+                { label: 'UCL', data: ucl, borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'LCL', data: lcl, borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'Center Line', data: p.map(() => pBar), borderColor: 'green', borderDash: [5,5], fill: false }
+              ]
+            },
+            options: { plugins: { title: { display: true, text: 'p Chart' } } }
+          });
+        } else if (chartType === 'np') {
+          const defectives = jsonData.map(r => r['Defective']);
+          const sampleSizes = jsonData.map(r => r['SampleSize']);
+          const pBar = defectives.reduce((a,b)=>a+b,0)/sampleSizes.reduce((a,b)=>a+b,0);
+          const n = sampleSizes[0];
+          const npBar = n * pBar;
+          const ucl = npBar + 3 * Math.sqrt(n*pBar*(1-pBar));
+          const lcl = Math.max(0, npBar - 3 * Math.sqrt(n*pBar*(1-pBar)));
+          const labels = defectives.map((_,i)=>`Sample ${i+1}`);
+
+          window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'np value', data: defectives, borderColor: 'blue', fill: false },
+                { label: 'UCL', data: defectives.map(() => ucl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'LCL', data: defectives.map(() => lcl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'Center Line', data: defectives.map(() => npBar), borderColor: 'green', borderDash: [5,5], fill: false }
+              ]
+            },
+            options: { plugins: { title: { display: true, text: 'np Chart' } } }
+          });
+        } else if (chartType === 'c') {
+          const defects = jsonData.map(r => r['Defects']);
+          const cBar = defects.reduce((a,b)=>a+b,0)/defects.length;
+          const ucl = cBar + 3 * Math.sqrt(cBar);
+          const lcl = Math.max(0, cBar - 3 * Math.sqrt(cBar));
+          const labels = defects.map((_,i)=>`Sample ${i+1}`);
+
+          window.myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+              labels,
+              datasets: [
+                { label: 'Defects', data: defects, borderColor: 'blue', fill: false },
+                { label: 'UCL', data: defects.map(() => ucl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'LCL', data: defects.map(() => lcl), borderColor: 'red', borderDash: [5,5], fill: false },
+                { label: 'Center Line', data: defects.map(() => cBar), borderColor: 'green', borderDash: [5,5], fill: false }
+              ]
+            },
+            options: { plugins: { title: { display: true, text: 'c Chart' } } }
+          });
+        } else {
+          alert('Unsupported chart type.');
+        }
+      }
+    });
+  </script>
+</body>
+</html>
